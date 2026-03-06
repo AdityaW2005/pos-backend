@@ -1,0 +1,46 @@
+# ── Environment ───────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# ── Virtual environments ─────────────────────────────────
+myvenv/
+.myvenv/
+env/
+
+# ── IDE / Editor ─────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Testing / Coverage ───────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+
+# ── Alembic ──────────────────────────────────────────────
+# Keep versions/ tracked, but ignore temp files
+alembic/versions/__pycache__/
+
+# ── Misc ─────────────────────────────────────────────────
+*.log
+*.bak
+*.tmp
