@@ -8,7 +8,7 @@ email + hashed password with JWT tokens.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Boolean, DateTime, Index
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -52,12 +52,12 @@ class UserPermission(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
     # e.g. orders.cancel, discounts.approve, reports.view, inventory.adjust
     permission: Mapped[str] = mapped_column(String(100), nullable=False)
     # Optional store scope – NULL means all stores
-    store_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    store_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id"), nullable=True)
 
     user = relationship("User", back_populates="permissions")
 
