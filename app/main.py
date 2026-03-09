@@ -32,6 +32,12 @@ from app.routers import (
     integration_routes,
     marketing_routes,
     audit_routes,
+    user_routes,
+    chain_routes,
+    group_routes,
+    notification_routes,
+    zone_routes,
+    report_routes,
 )
 
 settings = get_settings()
@@ -105,6 +111,12 @@ app.include_router(ledger_routes.router)
 app.include_router(integration_routes.router)
 app.include_router(marketing_routes.router)
 app.include_router(audit_routes.router)
+app.include_router(user_routes.router)
+app.include_router(chain_routes.router)
+app.include_router(group_routes.router)
+app.include_router(notification_routes.router)
+app.include_router(zone_routes.router)
+app.include_router(report_routes.router)
 
 
 # ── Health check ──────────────────────────────────────────────────────────

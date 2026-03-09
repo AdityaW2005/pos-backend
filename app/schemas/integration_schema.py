@@ -56,6 +56,8 @@ class AggregatorStoreLinkResponse(BaseModel):
     store_id: UUID
     aggregator_id: UUID
     external_store_id: str
+    api_key: str | None
+    api_secret: str | None
     config: dict | None
     is_enabled: bool
     created_at: datetime

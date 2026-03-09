@@ -97,6 +97,9 @@ class StoreCreate(BaseModel):
     currency: str = Field("INR", max_length=3)
     tax_inclusive: bool = False
     chain_id: UUID | None = None
+    state: str | None = Field(None, max_length=100, examples=["Karnataka"])
+    city: str | None = Field(None, max_length=100, examples=["Bangalore"])
+    outlet_type: str | None = Field(None, max_length=20, examples=["COFO", "FOFO", "COCO", "FOCO"])
 
 
 class StoreUpdate(BaseModel):
@@ -109,6 +112,9 @@ class StoreUpdate(BaseModel):
     tax_inclusive: bool | None = None
     chain_id: UUID | None = None
     is_active: bool | None = None
+    state: str | None = None
+    city: str | None = None
+    outlet_type: str | None = None
 
 
 class StoreResponse(BaseModel):
@@ -122,6 +128,9 @@ class StoreResponse(BaseModel):
     currency: str
     tax_inclusive: bool
     chain_id: UUID | None
+    state: str | None
+    city: str | None
+    outlet_type: str | None
     is_active: bool
     created_at: datetime
 

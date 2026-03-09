@@ -101,3 +101,37 @@ class AggregatorOrder(Base):
         Index("ix_agg_orders_store_id", "store_id"),
         Index("ix_agg_orders_external_id", "aggregator_id", "external_order_id", unique=True),
     )
+
+
+class IntegrationLog(Base):
+    """Logs for menu triggers, item syncs, and store status changes on aggregator platforms."""
+    __tablename__ = "integration_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    store_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False
+    )
+    aggregator_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("aggregator_configs.id", ondelete="SET NULL"), nullable=True
+    )
+    # menu_trigger | item_sync | store_status
+    log_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    # success | failed | pending
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="success")
+    entity_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    details: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        Index("ix_integration_logs_store_id", "store_id"),
+        Index("ix_integration_logs_type", "log_type"),
+        Index("ix_integration_logs_aggregator_id", "aggregator_id"),
+        Index("ix_integration_logs_created_at", "created_at"),
+    )

@@ -14,3 +14,6 @@ from app.schemas.billing_schema import *   # noqa: F401,F403
 from app.schemas.ledger_schema import *    # noqa: F401,F403
 from app.schemas.marketing_schema import * # noqa: F401,F403
 from app.schemas.report_schema import *    # noqa: F401,F403
+from app.schemas.notification_schema import * # noqa: F401,F403
+from app.schemas.zone_schema import *      # noqa: F401,F403
+from app.schemas.group_schema import *     # noqa: F401,F403

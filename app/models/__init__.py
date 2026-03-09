@@ -22,7 +22,7 @@ from app.models.purchasing import (  # noqa: F401
 from app.models.delivery import DeliveryOrderDetails  # noqa: F401
 from app.models.shifts import Shift, ShiftPaymentSummary, DayClose  # noqa: F401
 from app.models.integrations import (  # noqa: F401
-    AggregatorConfig, AggregatorStoreLink, AggregatorOrder,
+    AggregatorConfig, AggregatorStoreLink, AggregatorOrder, IntegrationLog,
 )
 from app.models.guests import Guest  # noqa: F401
 from app.models.billing import KOT, KOTItem, Invoice, BillTemplate  # noqa: F401
@@ -31,3 +31,9 @@ from app.models.ledger import (  # noqa: F401
 )
 from app.models.audit import AuditLog  # noqa: F401
 from app.models.marketing import Campaign  # noqa: F401
+from app.models.notifications import Notification, DeviceToken  # noqa: F401
+from app.models.zones import Zone, ZoneStoreLink  # noqa: F401
+from app.models.groups import (  # noqa: F401
+    PermissionGroup, PermissionGroupMember, PermissionGroupStore,
+)
+from app.models.reports import ReportTemplate, ReportRun  # noqa: F401

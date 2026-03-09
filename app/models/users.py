@@ -28,6 +28,10 @@ class User(Base):
     # Role: owner | manager | supervisor | cashier | waiter | kitchen | accountant | admin
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="owner")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Owner who invited this sub-user (NULL for top-level owner accounts)
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -38,6 +42,7 @@ class User(Base):
 
     __table_args__ = (
         Index("ix_users_email", "email"),
+        Index("ix_users_created_by", "created_by_id"),
     )
 
     def __repr__(self) -> str:

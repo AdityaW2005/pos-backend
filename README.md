@@ -255,12 +255,23 @@ curl "http://localhost:8000/analytics/summary?store_id=<STORE_UUID>&start_date=2
 
 ```
 Users 1──* Stores 1──* POSTerminals
-                  1──* Employees
-                  1──* Categories 1──* Products
-                  1──* DineInTables
-                  1──* Orders 1──* OrderItems ──1 Product
-                         1──* Payments
-                  1──* Expenses
+  │           │   1──* Employees
+  │           │   1──* Categories 1──* Products
+  │           │   1──* DineInTables
+  │           │   1──* Orders 1──* OrderItems ──1 Product
+  │           │          1──* Payments
+  │           │   1──* Expenses
+  │           │   1──* InventoryItems
+  │           │   1──* IntegrationLogs
+  │           │   1──* ReportRuns ──1 ReportTemplate
+  │           │
+  │           └──* ZoneStoreLinks ──1 Zone
+  │
+  ├──* Notifications
+  ├──* DeviceTokens
+  ├──* PermissionGroups ──* PermissionGroupMembers
+  │                     ──* PermissionGroupStores
+  └──* Chains 1──* Stores
 ```
 
 All primary keys are **UUID v4**. Foreign keys use `ON DELETE CASCADE` or `SET NULL` as appropriate.
@@ -276,3 +287,77 @@ All primary keys are **UUID v4**. Foreign keys use `ON DELETE CASCADE` or `SET N
 - [ ] Enable HTTPS
 - [ ] Set `DEBUG=false`
 - [ ] Configure log aggregation
+
+---
+
+## New Features (v2)
+
+The following 16 features were added across four priority tiers:
+
+### P0 — Must-have
+
+| # | Feature | Endpoints |
+|---|---------|-----------|
+| 1 | **User Profile & Cloud Access** | `GET/PUT /users/me` · `GET/POST/PUT /users` (sub-user management) |
+| 2 | **Single Store Fetch & Update** | `GET/PUT /stores/{id}` |
+
+### P1 — High priority
+
+| # | Feature | Endpoints |
+|---|---------|-----------|
+| 3 | **Multi-store Analytics** | `GET /analytics/summary/by-store` |
+| 4 | **Chain / Franchise CRUD** | `GET/POST /chains` · `GET/PUT /chains/{id}` · `GET /chains/{id}/stores` |
+| 5 | **Admin & Biller Groups** | `GET/POST /groups` · `GET/PUT/DELETE /groups/{id}` |
+| 6 | **Notifications & Device Tokens** | `GET /notifications` · `PUT /notifications/{id}/read` · `POST /notifications/mark-all-read` · `POST/GET/DELETE /notifications/devices` |
+
+### P2 — Medium priority
+
+| # | Feature | Endpoints |
+|---|---------|-----------|
+| 7 | **Out-of-Stock Toggle** | `GET /inventory/out-of-stock` · `PUT /inventory/items/{id}/availability` |
+| 8 | **Integration Logs (3 types)** | `GET /integrations/logs/menu-triggers` · `GET /integrations/logs/items` · `GET /integrations/logs/stores` · `GET /integrations/store-status` |
+| 9 | **Zone Management** | `GET/POST /zones` · `GET/PUT/DELETE /zones/{id}` |
+| 10 | **Report Templates & Generation** | `GET /reports/types` · `POST /reports/generate` · `GET /reports/{id}` · `GET /reports` |
+
+### P3 — Nice-to-have
+
+| # | Feature | Details |
+|---|---------|---------|
+| 11 | **Outlet Type & Structured Address** | `state`, `city`, `outlet_type` fields on Store model |
+| 12 | **Pending Purchase Aggregation** | `GET /purchasing/pending-summary` |
+| 13 | **User Activity Log Filter** | `user_id` query param on `GET /audit/logs` |
+| 14 | **Third-party Config Details** | `api_key`/`api_secret` exposed in `AggregatorStoreLinkResponse` |
+
+### New Models
+
+| Table | Purpose |
+|-------|---------|
+| `notifications` | In-app notification storage |
+| `device_tokens` | FCM/APNs/Web push token registry |
+| `zones` | Delivery zone definitions with GeoJSON boundary |
+| `zone_store_links` | Many-to-many zone ↔ store |
+| `permission_groups` | Admin/biller group definitions with JSONB permissions |
+| `permission_group_members` | Group ↔ user assignments |
+| `permission_group_stores` | Group ↔ store assignments |
+| `report_templates` | 22 predefined report types (auto-seeded) |
+| `report_runs` | Generated report history with JSONB results |
+| `integration_logs` | Aggregator sync/push audit trail |
+
+### Migration
+
+```bash
+alembic upgrade head
+```
+
+This applies migration `a3b8c9d0e1f2` which creates all new tables and adds columns to `users` (`created_by_id`) and `stores` (`state`, `city`, `outlet_type`).
+
+---
+
+## Running Tests
+
+```bash
+pip install -r requirements.txt
+python -m pytest tests/ -v
+```
+
+Tests use an in-memory SQLite database — no PostgreSQL required. The test suite covers all 16 new features with 55 test cases.
