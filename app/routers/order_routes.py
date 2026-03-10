@@ -23,13 +23,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.orders import Order, Payment
+from app.models.billing import KOT
 from app.models.users import User
 from app.schemas.order_schema import (
     OrderCreate,
     OrderResponse,
+    OrderItemResponse,
     OrderStatusUpdate,
     OrderCancelRequest,
     OrderTransferRequest,
+    OrderAddItemRequest,
+    OrderUpdateItemRequest,
     PaymentCreate,
     PaymentResponse,
     RefundRequest,
@@ -37,14 +41,19 @@ from app.schemas.order_schema import (
     SyncPaymentsRequest,
     SyncResponse,
 )
+from app.schemas.billing_schema import KOTResponse
 from app.services.order_service import (
     create_order,
     update_order_status,
     cancel_order,
     transfer_order,
+    add_order_item,
+    update_order_item,
+    delete_order_item,
     create_payment,
     create_refund,
 )
+from app.services.billing_service import create_kot, get_kot
 from app.services.sync_service import sync_orders, sync_payments
 from app.utils.auth import get_current_user
 
@@ -202,6 +211,111 @@ async def api_transfer_order(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
     order = await transfer_order(db, order, payload)
     return order
+
+
+# ── Add item to order ─────────────────────────────────────────────────────
+
+@router.post(
+    "/orders/{order_id}/items",
+    response_model=OrderItemResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add an item to an existing order",
+)
+async def api_add_order_item(
+    order_id: UUID,
+    payload: OrderAddItemRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Order).options(selectinload(Order.items)).where(Order.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    try:
+        item = await add_order_item(db, order, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return item
+
+
+# ── Update order item ────────────────────────────────────────────────────
+
+@router.put(
+    "/orders/{order_id}/items/{item_id}",
+    response_model=OrderItemResponse,
+    summary="Update quantity or notes of an order item",
+)
+async def api_update_order_item(
+    order_id: UUID,
+    item_id: UUID,
+    payload: OrderUpdateItemRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Order).options(selectinload(Order.items)).where(Order.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    try:
+        item = await update_order_item(db, order, item_id, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return item
+
+
+# ── Delete order item ────────────────────────────────────────────────────
+
+@router.delete(
+    "/orders/{order_id}/items/{item_id}",
+    response_model=OrderItemResponse,
+    summary="Remove an item from an order (before it is sent to kitchen)",
+)
+async def api_delete_order_item(
+    order_id: UUID,
+    item_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Order).options(selectinload(Order.items)).where(Order.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    try:
+        item = await delete_order_item(db, order, item_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return item
+
+
+# ── Create KOT (send items to kitchen) ───────────────────────────────────
+
+@router.post(
+    "/orders/{order_id}/kot",
+    response_model=KOTResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Send unsent order items to kitchen as a new KOT",
+)
+async def api_create_order_kot(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    # Resolve store_id from the order
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    try:
+        kot = await create_kot(db, order_id, order.store_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return await get_kot(db, kot.id)
 
 
 # ── Payment ───────────────────────────────────────────────────────────────

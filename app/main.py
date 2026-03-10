@@ -20,6 +20,7 @@ from app.routers import (
     employee_routes,
     product_routes,
     order_routes,
+    kitchen_routes,
     analytics_routes,
     menu_routes,
     inventory_routes,
@@ -99,6 +100,7 @@ app.include_router(store_routes.router)
 app.include_router(employee_routes.router)
 app.include_router(product_routes.router)
 app.include_router(order_routes.router)
+app.include_router(kitchen_routes.router)
 app.include_router(analytics_routes.router)
 app.include_router(menu_routes.router)
 app.include_router(inventory_routes.router)

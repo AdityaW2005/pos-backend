@@ -23,18 +23,18 @@ class KOTCreate(BaseModel):
     order_id: UUID
     store_id: UUID
     kitchen_section: str | None = Field(None, max_length=100)
-    item_ids: list[UUID] = Field(..., min_length=1, description="Order item IDs to include in this KOT")
+    item_ids: list[UUID] | None = Field(None, description="Order item IDs to include; omit to auto-select unsent items")
 
 
 class KOTStatusUpdate(BaseModel):
-    status: str = Field(..., examples=["acknowledged", "preparing", "completed"])
+    status: str = Field(..., examples=["preparing", "ready"])
 
 
 class KOTResponse(BaseModel):
     id: UUID
     order_id: UUID
     store_id: UUID
-    kot_number: str
+    kot_number: int
     kitchen_section: str | None
     status: str
     reprint_count: int

@@ -22,7 +22,7 @@ from app.schemas.billing_schema import (
     BillTemplateUpdate,
     BillTemplateResponse,
 )
-from app.services.billing_service import create_kot, get_kot, generate_invoice
+from app.services.billing_service import create_kot, get_kot, generate_invoice, update_kot_status
 from app.utils.auth import get_current_user
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
@@ -36,9 +36,12 @@ async def api_create_kot(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    kot = await create_kot(
-        db, payload.order_id, payload.store_id, payload.item_ids, payload.kitchen_section
-    )
+    try:
+        kot = await create_kot(
+            db, payload.order_id, payload.store_id, payload.item_ids, payload.kitchen_section
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return await get_kot(db, kot.id)
 
 
@@ -79,11 +82,10 @@ async def api_update_kot_status(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    kot = await get_kot(db, kot_id)
-    if not kot:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KOT not found")
-    kot.status = payload.status
-    await db.flush()
+    try:
+        kot = await update_kot_status(db, kot_id, payload.status)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return await get_kot(db, kot_id)
 
 

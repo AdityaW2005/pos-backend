@@ -17,6 +17,8 @@ from app.schemas.order_schema import (
     OrderUpdate,
     OrderCancelRequest,
     OrderTransferRequest,
+    OrderAddItemRequest,
+    OrderUpdateItemRequest,
     PaymentCreate,
     RefundRequest,
 )
@@ -83,7 +85,7 @@ async def create_order(db: AsyncSession, payload: OrderCreate) -> Order:
         service_charge=float(service_charge),
         net_amount=float(net),
         payment_status="pending",
-        status="new",
+        status="open",
         notes=payload.notes,
     )
 
@@ -96,16 +98,17 @@ async def create_order(db: AsyncSession, payload: OrderCreate) -> Order:
 async def update_order_status(
     db: AsyncSession, order: Order, new_status: str
 ) -> Order:
-    """Advance order through its lifecycle."""
+    """Advance order through its KOT-aware lifecycle."""
     allowed_transitions = {
-        "new": {"in_kitchen", "cancelled"},
-        "in_kitchen": {"ready", "cancelled"},
-        "ready": {"served", "cancelled"},
-        "served": {"completed"},
-        "completed": set(),
+        "open": {"sent_to_kitchen", "cancelled"},
+        "sent_to_kitchen": {"preparing", "cancelled"},
+        "preparing": {"ready", "cancelled"},
+        "ready": {"completed", "cancelled"},
+        "completed": {"paid"},
+        "paid": set(),
         "cancelled": set(),
     }
-    current = order.status or "new"
+    current = order.status or "open"
     if new_status not in allowed_transitions.get(current, set()):
         raise ValueError(
             f"Cannot transition from '{current}' to '{new_status}'"
@@ -191,3 +194,116 @@ async def create_refund(db: AsyncSession, payload: RefundRequest) -> Payment:
     db.add(refund)
     await db.flush()
     return refund
+
+
+# ── Order Item CRUD ───────────────────────────────────────────────────────
+
+def _recalculate_order_totals(order: Order):
+    """Recompute order totals from its active items."""
+    gross = Decimal("0")
+    tax = Decimal("0")
+    for item in order.items:
+        if item.status == "active":
+            gross += Decimal(str(item.total))
+            tax += Decimal(str(item.tax_amount))
+    discount = Decimal(str(order.discount_amount))
+    service_charge = Decimal(str(order.service_charge))
+    order.gross_amount = float(gross)
+    order.tax_amount = float(tax)
+    order.net_amount = float(gross + tax + service_charge - discount)
+
+
+async def add_order_item(
+    db: AsyncSession, order: Order, payload: OrderAddItemRequest
+) -> OrderItem:
+    """Add a new item to an existing open/in-progress order."""
+    if order.status in ("completed", "paid", "cancelled"):
+        raise ValueError(f"Cannot add items to order in '{order.status}' status")
+
+    # Look up product for tax
+    result = await db.execute(select(Product).where(Product.id == payload.product_id))
+    product = result.scalar_one_or_none()
+    tax_pct = Decimal(str(product.tax_percent)) if product else Decimal("0")
+
+    item_total = Decimal(str(payload.price)) * payload.quantity
+    item_tax = item_total * tax_pct / Decimal("100")
+
+    item = OrderItem(
+        id=uuid.uuid4(),
+        order_id=order.id,
+        product_id=payload.product_id,
+        quantity=payload.quantity,
+        price=float(payload.price),
+        tax_amount=float(item_tax),
+        total=float(item_total),
+        notes=payload.notes,
+        kitchen_status="pending",
+    )
+    db.add(item)
+    await db.flush()
+
+    # Refresh items list and recalculate
+    await db.refresh(order, attribute_names=["items"])
+    _recalculate_order_totals(order)
+    order.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    return item
+
+
+async def update_order_item(
+    db: AsyncSession, order: Order, item_id: uuid.UUID, payload: OrderUpdateItemRequest
+) -> OrderItem:
+    """Update quantity or notes of an order item."""
+    if order.status in ("completed", "paid", "cancelled"):
+        raise ValueError(f"Cannot update items on order in '{order.status}' status")
+
+    item = None
+    for oi in order.items:
+        if oi.id == item_id:
+            item = oi
+            break
+    if not item:
+        raise ValueError("Order item not found")
+    if item.status != "active":
+        raise ValueError(f"Cannot update item in '{item.status}' status")
+
+    if payload.quantity is not None:
+        item.quantity = payload.quantity
+        item.total = float(Decimal(str(item.price)) * payload.quantity)
+        # Recalculate tax proportionally
+        result = await db.execute(select(Product).where(Product.id == item.product_id))
+        product = result.scalar_one_or_none()
+        tax_pct = Decimal(str(product.tax_percent)) if product else Decimal("0")
+        item.tax_amount = float(Decimal(str(item.total)) * tax_pct / Decimal("100"))
+
+    if payload.notes is not None:
+        item.notes = payload.notes
+
+    _recalculate_order_totals(order)
+    order.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    return item
+
+
+async def delete_order_item(
+    db: AsyncSession, order: Order, item_id: uuid.UUID
+) -> OrderItem:
+    """Soft-delete (cancel) an order item."""
+    if order.status in ("completed", "paid", "cancelled"):
+        raise ValueError(f"Cannot remove items from order in '{order.status}' status")
+
+    item = None
+    for oi in order.items:
+        if oi.id == item_id:
+            item = oi
+            break
+    if not item:
+        raise ValueError("Order item not found")
+    if item.kot_id is not None:
+        raise ValueError("Cannot remove item already sent to kitchen; cancel it instead")
+
+    item.status = "cancelled"
+    _recalculate_order_totals(order)
+    order.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    return item

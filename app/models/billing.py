@@ -32,17 +32,18 @@ class KOT(Base):
     store_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False
     )
-    kot_number: Mapped[str] = mapped_column(String(30), nullable=False)
+    kot_number: Mapped[int] = mapped_column(Integer, nullable=False)
     # Target kitchen section
     kitchen_section: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    # printed | acknowledged | preparing | completed
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="printed")
+    # pending | preparing | ready
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     reprint_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
     items = relationship("KOTItem", back_populates="kot", cascade="all, delete-orphan")
+    order = relationship("Order", back_populates="kots")
 
     __table_args__ = (
         Index("ix_kots_order_id", "order_id"),

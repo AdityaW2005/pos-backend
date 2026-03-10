@@ -49,8 +49,8 @@ class Order(Base):
 
     # dine_in | takeaway | delivery | aggregator
     order_type: Mapped[str] = mapped_column(String(20), nullable=False, default="dine_in")
-    # Order status lifecycle: new | in_kitchen | ready | served | completed | cancelled | no_show
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="new")
+    # Order status lifecycle: open | sent_to_kitchen | preparing | ready | completed | paid | cancelled
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
 
     # Channel: pos | online | aggregator
     channel: Mapped[str] = mapped_column(String(20), nullable=False, default="pos")
@@ -94,6 +94,7 @@ class Order(Base):
     terminal = relationship("POSTerminal", back_populates="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="order", cascade="all, delete-orphan")
+    kots = relationship("KOT", back_populates="order", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_orders_store_id", "store_id"),

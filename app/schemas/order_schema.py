@@ -118,7 +118,21 @@ class OrderComplete(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     """Move an order through its lifecycle."""
-    status: str = Field(..., examples=["in_kitchen", "ready", "served", "completed"])
+    status: str = Field(..., examples=["sent_to_kitchen", "preparing", "ready", "completed", "paid"])
+
+
+class OrderAddItemRequest(BaseModel):
+    """Add a single item to an existing order."""
+    product_id: UUID
+    quantity: int = Field(1, ge=1)
+    price: float = Field(..., ge=0, examples=[299.00])
+    notes: str | None = None
+
+
+class OrderUpdateItemRequest(BaseModel):
+    """Update an existing order item."""
+    quantity: int | None = Field(None, ge=1)
+    notes: str | None = None
 
 
 class OrderCancelRequest(BaseModel):
