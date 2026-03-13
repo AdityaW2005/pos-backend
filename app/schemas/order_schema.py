@@ -169,6 +169,16 @@ class PaymentCreate(BaseModel):
     reference: str | None = Field(None, max_length=255)
 
 
+class PaymentUpdate(BaseModel):
+    payment_method: str | None = Field(
+        None,
+        examples=["cash", "card", "upi", "wallet", "gift_card"],
+    )
+    amount: float | None = Field(None, gt=0, examples=[500.00])
+    tip_amount: float | None = Field(None, ge=0)
+    reference: str | None = Field(None, max_length=255)
+
+
 class PaymentResponse(BaseModel):
     id: UUID
     order_id: UUID
